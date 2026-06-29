@@ -301,17 +301,3 @@ if __name__ == "__main__":
         transcript_json = json.load(f)
 
     translated, log = translate_json_transcript(transcript_json)
-
-    print("=== TRANSLATION LOG ===\n")
-    for entry in log:
-        print(f"[{entry['source']}] seg {entry['segment_index']}"
-              f"  lang={entry['detected_lang']!r}")
-        if entry["protected_terms"]:
-            print(f"  protected : {entry['protected_terms']}")
-        if entry["words_translated"]:
-            for w in entry["words_translated"]:
-                print(f"  word pos {w['position']}: {w['original']!r} -> {w['translated']!r}")
-        print()
-
-    print("=== OUTPUT ===\n")
-    print(json.dumps(translated, indent=2, ensure_ascii=False))

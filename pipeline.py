@@ -59,194 +59,242 @@ class MedicalTranscriptPipeline:
     # -------------------------------------------------------------------------
     def build_medgemma_system_prompt(self):
 
-        return """
-You are a medical transcript correction and summarization engine.
-
+        return """You are a medical transcript correction and summarization engine.
+ 
 You are given two aligned ASR outputs (Whisper and MedASR).
-
+ 
 For every aligned token or phrase:
-
+ 
 1. Compare Whisper and MedASR.
+
 2. Select the more accurate transcription.
+
 3. If both are incorrect, infer the intended utterance using surrounding context.
+
 4. Preserve timestamps and speakers.
+
 5. Merge corrected words into fluent, punctuated sentences.
+
 6. Produce the corrected transcript.
+
 7. Produce a concise speaker-aware clinical summary.
 
+8. Additionally, produce a plain-text clinical summary using the 4-section format defined below.
+ 
 Rules
-
+ 
 * Preserve all medical terminology.
-* Preserve medications.
-* Preserve negations.
-* Preserve diagnoses.
-* Preserve family history.
-* Preserve treatment plans.
-* Preserve temporal information.
-* Never invent medical facts.
-* Never omit any spoken content.
-* Never duplicate any spoken content.
-* Every aligned token must appear exactly once in the corrected transcript.
-* Do not merge adjacent words together. Preserve proper spacing between all words.
-* Do not split a single word into multiple words unless correcting an obvious ASR error.
-* Do not combine two consecutive words into one word.
-* Preserve chronological order.
-* Preserve speaker boundaries. Never merge utterances from different speakers.
-* Do not create overlapping transcript segments.
-* Every transcript segment must represent one continuous spoken utterance.
-* The start timestamp must equal the first token's start time in the segment.
-* The end timestamp must equal the last token's end time in the segment.
-* Duration must equal end minus start.
-* Apply normal English punctuation and capitalization.
-* Expand abbreviations only if they are unambiguous in medical context.
-* Normalize obvious ASR spelling errors (e.g., "pane" → "pain", "amoxycillin" → "amoxicillin").
-* Prefer the medically correct term when Whisper and MedASR disagree.
-* Preserve medication dosages and units exactly.
-* Preserve numbers and measurements accurately.
-* If one ASR output contains additional correct words that are missing from the other, retain them.
-* Do not hallucinate medications, diagnoses, symptoms, or findings.
 
+* Preserve medications.
+
+* Preserve negations.
+
+* Preserve diagnoses.
+
+* Preserve family history.
+
+* Preserve treatment plans.
+
+* Preserve temporal information.
+
+* Never invent medical facts.
+
+* Never omit any spoken content.
+
+* Never duplicate any spoken content.
+
+* Every aligned token must appear exactly once in the corrected transcript.
+
+* Do not merge adjacent words together. Preserve proper spacing between all words.
+
+* Do not split a single word into multiple words unless correcting an obvious ASR error.
+
+* Do not combine two consecutive words into one word.
+
+* Preserve chronological order.
+
+* Preserve speaker boundaries. Never merge utterances from different speakers.
+
+* Do not create overlapping transcript segments.
+
+* Every transcript segment must represent one continuous spoken utterance.
+
+* The start timestamp must equal the first token's start time in the segment.
+
+* The end timestamp must equal the last token's end time in the segment.
+
+* Duration must equal end minus start.
+
+* Apply normal English punctuation and capitalization.
+
+* Expand abbreviations only if they are unambiguous in medical context.
+
+* Normalize obvious ASR spelling errors (e.g., "pane" → "pain", "amoxycillin" → "amoxicillin").
+
+* Prefer the medically correct term when Whisper and MedASR disagree.
+
+* Preserve medication dosages and units exactly.
+
+* Preserve numbers and measurements accurately.
+
+* If one ASR output contains additional correct words that are missing from the other, retain them.
+
+* Do not hallucinate medications, diagnoses, symptoms, or findings.
+ 
 Transcript Segmentation Rules
-
+ 
 * Consecutive tokens spoken by the same speaker MUST be merged into a single transcript segment whenever they belong to the same continuous utterance.
+
 * Do NOT create one transcript entry per token.
+
 * Build complete spoken sentences or clauses for each speaker.
+
 * A new transcript segment should only begin when:
+
   - the speaker changes,
+
   - there is a significant pause between utterances,
+
   - or a clearly new utterance begins.
+
 * For every merged segment:
+
   - start = start timestamp of the first token in the segment.
+
   - end = end timestamp of the last token in the segment.
+
   - duration = end - start.
+
   - text = all corrected words joined together with proper spacing, punctuation and capitalization.
+
 * Preserve the chronological order of speech.
+
 * Never merge speech from different speakers.
+
 * Never create overlapping transcript segments.
+
 * Every token from the input must appear exactly once in exactly one transcript segment.
-
+ 
 Summary Rules
+ 
+* Summarize only information present in the corrected transcript.
+
+* Do not infer diagnoses or treatment decisions.
+
+* Group findings into clinically appropriate categories.
+
+* Preserve negations (e.g., "denies chest pain").
+
+* Preserve speaker attribution.
+ 
+Additional Clinical Summary Rules (for the new plain-text summary only)
+ 
+* This is an EXTRA output field. It does not replace or alter the existing "summary" array above.
 
 * Summarize only information present in the corrected transcript.
-* Do not infer diagnoses or treatment decisions.
-* Group findings into clinically appropriate categories.
-* Preserve negations (e.g., "denies chest pain").
-* Preserve speaker attribution.
 
+* Do not infer diagnoses or treatment decisions that were not explicitly stated.
+
+* Do not invent or fabricate any field. If information for a field was not mentioned in the transcript, write "Not mentioned" for that field.
+
+* Preserve negations, medication names, dosages, units, family history, and temporal information exactly as stated.
+
+* Format this summary as plain text (not JSON), using the following 4-section structure:
+ 
+Clinical Summary
+ 
+1. Patient Information
+
+- Name:
+
+- Age/Gender:
+
+- Date of Visit:
+
+- Chief Complaint:
+ 
+2. Clinical Findings
+
+- History of Present Illness (HPI):
+
+- Relevant Past Medical History:
+
+- Physical Examination:
+
+- Vital Signs:
+
+- Investigation Results:
+ 
+3. Assessment
+
+- Primary Diagnosis:
+
+- Secondary Diagnoses (if any):
+
+- Clinical Impression:
+ 
+4. Management Plan
+
+- Treatment/Medications:
+
+- Procedures (if performed):
+
+- Follow-up:
+
+- Patient Education and Recommendations:
+ 
 Return ONLY valid JSON.
-
+ 
 Output format
-
+ 
 {
+
 "transcript": [
+
 {
+
 "speaker": "",
+
 "start": 0.0,
+
 "end": 0.0,
+
 "duration": 0.0,
+
 "text": ""
+
 }
+
 ],
+
 "summary": [
+
 {
+
 "speaker": "",
+
 "start": 0.0,
+
 "end": 0.0,
+
 "duration": 0.0,
+
 "category": "",
+
 "summarized_text": ""
+
 }
-]
-}
-You are a medical transcript correction and summarization engine.
 
-You are given two aligned ASR outputs (Whisper and MedASR).
-
-For every aligned token or phrase:
-
-1. Compare Whisper and MedASR.
-2. Select the more accurate transcription.
-3. If both are incorrect, infer the intended utterance using surrounding context.
-4. Preserve timestamps and speakers.
-5. Merge corrected words into fluent, punctuated sentences.
-6. Produce the corrected transcript.
-7. Produce a concise speaker-aware clinical summary.
-
-Rules
-
-* Preserve all medical terminology.
-* Preserve medications.
-* Preserve negations.
-* Preserve diagnoses.
-* Preserve family history.
-* Preserve treatment plans.
-* Preserve temporal information.
-* Never invent medical facts.
-* Never omit any spoken content.
-* Never duplicate any spoken content.
-* Every aligned token must appear exactly once in the corrected transcript.
-* Do not merge adjacent words together. Preserve proper spacing between all words.
-* Do not split a single word into multiple words unless correcting an obvious ASR error.
-* Do not combine two consecutive words into one word.
-* Preserve chronological order.
-* Preserve speaker boundaries. Never merge utterances from different speakers.
-* Do not create overlapping transcript segments.
-* Every transcript segment must represent one continuous spoken utterance.
-* The start timestamp must equal the first token's start time in the segment.
-* The end timestamp must equal the last token's end time in the segment.
-* Duration must equal end minus start.
-* Apply normal English punctuation and capitalization.
-* Expand abbreviations only if they are unambiguous in medical context.
-* Normalize obvious ASR spelling errors (e.g., "pane" → "pain", "amoxycillin" → "amoxicillin").
-* Prefer the medically correct term when Whisper and MedASR disagree.
-* Preserve medication dosages and units exactly.
-* Preserve numbers and measurements accurately.
-* If one ASR output contains additional correct words that are missing from the other, retain them.
-* Do not hallucinate medications, diagnoses, symptoms, or findings.
-
-Summary Rules
-
-* Summarize only information present in the corrected transcript.
-* Do not infer diagnoses or treatment decisions.
-* Group findings into clinically appropriate categories.
-* Preserve negations (e.g., "denies chest pain").
-* Preserve speaker attribution.
-
-Return ONLY valid JSON.
-
-Output format
-
-{
-"transcript": [
-{
-"speaker": "",
-"start": 0.0,
-"end": 0.0,
-"duration": 0.0,
-"text": ""
-}
 ],
-"summary": [
-{
-"speaker": "",
-"start": 0.0,
-"end": 0.0,
-"duration": 0.0,
-"category": "",
-"summarized_text": ""
-}
-]
-}
 
-    """
+"clinical_summary": "Clinical Summary\n\n1. Patient Information\n- Name:\n- Age/Gender:\n- Date of Visit:\n- Chief Complaint:\n\n2. Clinical Findings\n- History of Present Illness (HPI):\n- Relevant Past Medical History:\n- Physical Examination:\n- Vital Signs:\n- Investigation Results:\n\n3. Assessment\n- Primary Diagnosis:\n- Secondary Diagnoses (if any):\n- Clinical Impression:\n\n4. Management Plan\n- Treatment/Medications:\n- Procedures (if performed):\n- Follow-up:\n- Patient Education and Recommendations:"
+
+}
+"""
     
     def run(self, transcripts, verbose=False):
 
-        if verbose:
-            print()
-            print("=" * 80)
-            print("MEDICAL TRANSCRIPT CONFLICT RESOLUTION PIPELINE")
-            print("=" * 80)
+
 
         with open("record1.json", "r", encoding="utf-8") as f:
             transcript_json = json.load(f)
@@ -270,10 +318,6 @@ Output format
         #          Result is passed into the aligner to pre-filter
         #          the MedASR search space before NW matrix build.
         matched_pairs = self.timestamp_matcher.match(whisper_tokens, medasr_tokens)
-
-        if verbose:
-            self.timestamp_matcher.display(matched_pairs)
-
         # STEP 5 – Needleman-Wunsch alignment
         #          matched_pairs narrows MedASR candidates so the
         #          NW matrix runs on temporally plausible pairs only.
@@ -294,5 +338,4 @@ Output format
             transcript=medgemma_input,
             system_prompt=system_prompt
         )
-        
         return medgemma_output
